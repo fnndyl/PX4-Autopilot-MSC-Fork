@@ -140,11 +140,13 @@ void BargeController::updateWrenchCommand(const gz::math::Vector3d &velocity_set
 
 	// Account for gravity on platform
 	const gz::math::Vector3d normal_force(0., 0., -_gravity * _platform_mass);
+	_force = normal_force;
+
 
 	// Feedback terms for platform position
 	{
 		const gz::math::Vector3d pos_gains = 98600 * gz::math::Vector3d(1., 1., 1.); // ChatGPT gains
-		const gz::math::Vector3d vel_gains = 44000 * gz::math::Vector3d(1., 1., 1.);
+		const gz::math::Vector3d vel_gains = 44000 * 2 * gz::math::Vector3d(1., 1., 1.);
 
 		const gz::math::Vector3d platform_position_setpoint = _position_sp;
 		const gz::math::Vector3d platform_velocity_setpoint = gz::math::Vector3d::Zero;
@@ -155,35 +157,19 @@ void BargeController::updateWrenchCommand(const gz::math::Vector3d &velocity_set
 
 		// Note * is elementwise multiplication
 		const gz::math::Vector3d feedback_force = -pos_gains * platform_pos_error - vel_gains * platform_vel_error;
+		const float max_accel = 7.0;
 
-		const bool integral = false;
-		const float max_accel = 10.0;
+		const gz::math::Vector2d _force_xy = gz::math::Vector2d(feedback_force.X(), feedback_force.Y());
+		const float accel_xy = _force_xy.Length() / _platform_mass;
 
-		if (!integral) {
-			// Clip forces to limit large accelerations (less relevant with smooth trajectories, hopefully)
-			
-			const float accel = feedback_force.Length() / _platform_mass;
-
-			if (accel > max_accel) {
-				const float scaling = max_accel / accel;
-				_force = feedback_force * gz::math::Vector3d(scaling, scaling, scaling);
-
-			} else {
-				_force = feedback_force;
-			}
+		if (accel_xy > max_accel) {
+			const float scaling = max_accel / accel_xy;
+			_force += feedback_force * gz::math::Vector3d(scaling, scaling, 1.);
 
 		} else {
-			const gz::math::Vector2d _force_xy = gz::math::Vector2d(feedback_force.X(), feedback_force.Y());
-			const float accel_xy = _force_xy.Length() / _platform_mass;
-
-			if (accel_xy > max_accel) {
-				const float scaling = max_accel / accel_xy;
-				_force += feedback_force * gz::math::Vector3d(scaling, scaling, 1.);
-
-			} else {
-				_force += feedback_force;
-			}
+			_force += feedback_force;
 		}
+		
 
 	}
 
@@ -291,7 +277,8 @@ void BargeController::bargeCallback(const gz::msgs::Odometry &_msg)
 	// Extract vehicle position and orientation
     // Assign position
     const auto pos_msg = _msg.pose().position();
-	_position_sp.Set(pos_msg.x(), pos_msg.y(), pos_msg.z() + 1.0); // Temp!
+	//_position_sp.Set(pos_msg.x(), pos_msg.y(), pos_msg.z() + 1.0); // Temp!
+	_position_sp.Set(3.0, 3.0, 3.0);
 
     // Assign orientation
     const auto &ori_msg = _msg.pose().orientation();
