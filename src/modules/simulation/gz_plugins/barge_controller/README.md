@@ -1,3 +1,5 @@
+Modified from MovingPlatformController.cpp
+
 # Moving Platform Controller
 
 This plugin controls a moving platform that emulates ships/trucks/etc. to
