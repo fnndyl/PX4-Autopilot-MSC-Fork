@@ -82,17 +82,13 @@ namespace custom
 		void bargeCallback(const gz::msgs::Odometry &_msg);
 
 	private:
-
 		void updateWrenchCommand(const gz::math::Vector3d &velocity_setpoint,
 					const gz::math::Quaterniond &orientation_setpoint,
 					const bool keep_stationary);
 		void sendWrenchCommand(gz::sim::EntityComponentManager &ecm);
-		
-		double readEnvVar(const char *env_var_name, double default_value);
 
 		void getPlatformState(const gz::sim::EntityComponentManager &ecm);
 		void getVehicleModelName();
-		void getPlatformSetpoint();
 
 		gz::sim::Entity _entity;
 		gz::sim::Model _model{gz::sim::kNullEntity};
@@ -114,9 +110,12 @@ namespace custom
 
 		// Platform velocity setpoint [m/s].
 		gz::math::Vector3d _velocity_sp{1., 0., 0.};
-		// Orientation setpoint.
-		gz::math::Quaterniond _orientation_sp{1., 0., 0., 0.};
 
+		// Setpoints
+		gz::math::Quaterniond _orientation_sp{1., 0., 0., 0.};
+		gz::math::Vector3d _position_sp{0., 0., 0.};
+		
+		// Other simulation values
 		double _gravity{-9.8};
 		double _platform_mass{10000.};
 		gz::math::Vector3d _platform_diag_moments;
