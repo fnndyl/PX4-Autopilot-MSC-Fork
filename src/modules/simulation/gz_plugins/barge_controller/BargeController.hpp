@@ -46,11 +46,16 @@
 #include <gz/sim/EntityComponentManager.hh>
 
 #include <gz/common/Timer.hh>
+#include <gz/common/Console.hh>
 
 #include <gz/plugin/Register.hh>
 
 #include <gz/msgs/Utility.hh>
 #include <gz/msgs/twist.pb.h>
+#include <gz/msgs/pose.pb.h>
+#include <gz/msgs/odometry.pb.h>
+
+#include <gz/transport.hh>
 
 #include <gz/math.hh>
 #include <gz/math/Rand.hh>
@@ -60,66 +65,68 @@ using namespace std::chrono_literals;
 
 namespace custom
 {
-class BargeController:
-	public gz::sim::System,
-	public gz::sim::ISystemPreUpdate,
-	public gz::sim::ISystemConfigure
-{
-public:
-	void PreUpdate(const gz::sim::UpdateInfo &_info,
-		       gz::sim::EntityComponentManager &_ecm) final;
+	class BargeController:
+		public gz::sim::System,
+		public gz::sim::ISystemPreUpdate,
+		public gz::sim::ISystemConfigure
+	{
+	public:
+		void PreUpdate(const gz::sim::UpdateInfo &_info,
+				gz::sim::EntityComponentManager &_ecm) final;
 
-	void Configure(const gz::sim::Entity &entity,
-		       const std::shared_ptr<const sdf::Element> &sdf,
-		       gz::sim::EntityComponentManager &ecm,
-		       gz::sim::EventManager &eventMgr) override;
+		void Configure(const gz::sim::Entity &entity,
+				const std::shared_ptr<const sdf::Element> &sdf,
+				gz::sim::EntityComponentManager &ecm,
+				gz::sim::EventManager &eventMgr) override;
 
-private:
+		void bargeCallback(const gz::msgs::Odometry &_msg);
 
-	void getPlatformState(const gz::sim::EntityComponentManager &ecm);
-	void updateNoise(const double dt);
-	void updateWrenchCommand(const gz::math::Vector3d &velocity_setpoint,
-				 const gz::math::Quaterniond &orientation_setpoint,
-				 const bool keep_stationary);
-	void sendWrenchCommand(gz::sim::EntityComponentManager &ecm);
-	double readEnvVar(const char *env_var_name, double default_value);
-	void getVehicleModelName();
+	private:
 
-	gz::sim::Entity _entity;
-	gz::sim::Model _model{gz::sim::kNullEntity};
-	gz::sim::Entity _link_entity;
-	gz::sim::Link _link;
+		void updateWrenchCommand(const gz::math::Vector3d &velocity_setpoint,
+					const gz::math::Quaterniond &orientation_setpoint,
+					const bool keep_stationary);
+		void sendWrenchCommand(gz::sim::EntityComponentManager &ecm);
+		
+		double readEnvVar(const char *env_var_name, double default_value);
 
-	gz::sim::Entity _world_entity;
-	gz::sim::World _world;
+		void getPlatformState(const gz::sim::EntityComponentManager &ecm);
+		void getVehicleModelName();
+		void getPlatformSetpoint();
 
-	// Low-pass filtered white noise for driving boat motion.
-	gz::math::Vector3d _noise_lowpass_force{0., 0., 0.};
-	gz::math::Vector3d _noise_lowpass_torque{0., 0., 0.};
+		gz::sim::Entity _entity;
+		gz::sim::Model _model{gz::sim::kNullEntity};
+		gz::sim::Entity _link_entity;
+		gz::sim::Link _link;
 
-	// Platform linear & angular velocity.
-	gz::math::Vector3d _force{0., 0., 0.};
-	gz::math::Vector3d _torque{0., 0., 0.};
+		gz::sim::Entity _world_entity;
+		gz::sim::World _world;
 
-	// Platform position & orientation for feedback.
-	gz::math::Vector3d _platform_position{0., 0., 0.};
-	gz::math::Quaterniond _platform_orientation{1., 0., 0., 0.};
-	gz::math::Vector3d _platform_velocity{0., 0., 0.};
-	gz::math::Vector3d _platform_angular_velocity{0., 0., 0.};
+		// Platform linear & angular velocity.
+		gz::math::Vector3d _force{0., 0., 0.};
+		gz::math::Vector3d _torque{0., 0., 0.};
 
-	// Platform velocity setpoint [m/s].
-	gz::math::Vector3d _velocity_sp{1., 0., 0.};
-	// Orientation setpoint.
-	gz::math::Quaterniond _orientation_sp{1., 0., 0., 0.};
-	// Height setpoint [m]
-	double _platform_height_setpoint{2.};
+		// Platform position & orientation for feedback.
+		gz::math::Vector3d _platform_position{0., 0., 0.};
+		gz::math::Quaterniond _platform_orientation{1., 0., 0., 0.};
+		gz::math::Vector3d _platform_velocity{0., 0., 0.};
+		gz::math::Vector3d _platform_angular_velocity{0., 0., 0.};
 
-	double _gravity{-9.8};
-	double _platform_mass{10000.};
-	gz::math::Vector3d _platform_diag_moments;
+		// Platform velocity setpoint [m/s].
+		gz::math::Vector3d _velocity_sp{1., 0., 0.};
+		// Orientation setpoint.
+		gz::math::Quaterniond _orientation_sp{1., 0., 0., 0.};
 
-	gz::common::Timer _startup_timer;
-	std::string _vehicle_model_name;
-	bool _wait_for_vehicle_spawned;
-};
+		double _gravity{-9.8};
+		double _platform_mass{10000.};
+		gz::math::Vector3d _platform_diag_moments;
+
+		gz::common::Timer _startup_timer;
+		std::string _vehicle_model_name;
+		bool _wait_for_vehicle_spawned;
+
+		// Transport stuff
+		gz::transport::Node _node;
+
+	};
 } // end namespace custom
