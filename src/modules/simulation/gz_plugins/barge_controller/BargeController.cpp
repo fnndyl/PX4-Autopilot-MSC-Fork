@@ -85,7 +85,7 @@
 
     // Initialize node + get setpoints from function
     {
-		std::string topic = "/x500/odom";
+		std::string topic = "barge_cmd";
 		// Subscribe to node and register a callback
 		if (!_node.Subscribe(topic, &BargeController::bargeCallback, this))
 		{
@@ -277,8 +277,8 @@ void BargeController::bargeCallback(const gz::msgs::Odometry &_msg)
 	// Extract vehicle position and orientation
     // Assign position
     const auto pos_msg = _msg.pose().position();
-	//_position_sp.Set(pos_msg.x(), pos_msg.y(), pos_msg.z() + 1.0); // Temp!
-	_position_sp.Set(3.0, 3.0, 3.0);
+	_position_sp.Set(pos_msg.x(), pos_msg.y(), pos_msg.z() + 1.0); // Temp!
+	//_position_sp.Set(3.0, 3.0, 3.0);
 
     // Assign orientation
     const auto &ori_msg = _msg.pose().orientation();
