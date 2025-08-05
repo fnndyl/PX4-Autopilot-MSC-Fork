@@ -277,7 +277,7 @@ void BargeController::bargeCallback(const gz::msgs::Odometry &_msg)
 	// Extract vehicle position and orientation
     // Assign position
     const auto pos_msg = _msg.pose().position();
-	_position_sp.Set(pos_msg.x(), pos_msg.y(), pos_msg.z() + 1.0); // Temp!
+	_position_sp.Set(pos_msg.x(), pos_msg.y(), pos_msg.z());
 	//_position_sp.Set(3.0, 3.0, 3.0);
 
     // Assign orientation
