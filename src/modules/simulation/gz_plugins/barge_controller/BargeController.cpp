@@ -179,17 +179,17 @@ void BargeController::updateWrenchCommand(const gz::math::Vector3d &velocity_set
 	//    https://www.diva-portal.org/smash/get/diva2:1010947/FULLTEXT01.pdf
 
 	{
-		const gz::math::Quaterniond attitude_err = _platform_orientation * orientation_setpoint.Inverse(); // HUH
+		const gz::math::Quaterniond attitude_err = _platform_orientation * orientation_setpoint.Inverse();
 
-		// Gains with factors of 1
-		const gz::math::Vector3d attitude_p_gain = 1. * _platform_diag_moments;
-		const gz::math::Vector3d attitude_d_gain = 1. * _platform_diag_moments;
+		// With the factors of 1. having units of 1 / (m rad) and s / (m rad), respectively
+		const gz::math::Vector3d attitude_p_gain = 10 * _platform_diag_moments; // [N m / rad]
+		const gz::math::Vector3d attitude_d_gain = 100 * _platform_diag_moments; // [N m / (rad/s)]
 
 		const double sgn = attitude_err.W() > 0. ? 1. : -1.;
 		gz::math::Vector3d attitude_err_imag = sgn * gz::math::Vector3d(attitude_err.X(), attitude_err.Y(), attitude_err.Z());
 
 		// Factor of 2 to convert quaternion error to rad
-		_torque += -2. * attitude_p_gain * attitude_err_imag - attitude_d_gain * _platform_angular_velocity;
+		_torque += -(2. * attitude_p_gain * attitude_err_imag + attitude_d_gain * _platform_angular_velocity);
 	}
 }
 
@@ -299,7 +299,8 @@ void BargeController::bargeCallback(const gz::msgs::Odometry &_msg)
 	//_position_sp.Set(3.0, 3.0, 3.0);
 
     // Assign orientation
-    const auto &ori_msg = _msg.pose().orientation();
-	_orientation_sp.Set(ori_msg.w(), ori_msg.x(), ori_msg.y(), ori_msg.z());
+    //const auto &ori_msg = _msg.pose().orientation();
+	//_orientation_sp.Set(ori_msg.w(), ori_msg.x(), ori_msg.y(), ori_msg.z());
+	_orientation_sp.Set(0.0, 0.0, 0.0, 0.0);
 
 }
