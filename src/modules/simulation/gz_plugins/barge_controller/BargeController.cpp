@@ -169,10 +169,28 @@ void BargeController::updateWrenchCommand(const gz::math::Vector3d &velocity_set
 		} else {
 			_force += feedback_force;
 		}
-		
-
 	}
 
+	// Feedback terms for platform orientation - adapted from moving platform controller (quaternion weirdness)
+	// Combining ideas from:
+	//  - Eq. 23 in Nonlinear Quadrocopter Attitude Control (Brescianini, Hehn, D'Andrea)
+	//    https://www.research-collection.ethz.ch/handle/20.500.11850/154099
+	//  - Eq. 20 in Full Quaternion Based Attitude Control for a Quadrotor (Fresk, Nikolakopoulos)
+	//    https://www.diva-portal.org/smash/get/diva2:1010947/FULLTEXT01.pdf
+
+	{
+		const gz::math::Quaterniond attitude_err = _platform_orientation * orientation_setpoint.Inverse(); // HUH
+
+		// Gains with factors of 1
+		const gz::math::Vector3d attitude_p_gain = 1. * _platform_diag_moments;
+		const gz::math::Vector3d attitude_d_gain = 1. * _platform_diag_moments;
+
+		const double sgn = attitude_err.W() > 0. ? 1. : -1.;
+		gz::math::Vector3d attitude_err_imag = sgn * gz::math::Vector3d(attitude_err.X(), attitude_err.Y(), attitude_err.Z());
+
+		// Factor of 2 to convert quaternion error to rad
+		_torque += -2. * attitude_p_gain * attitude_err_imag - attitude_d_gain * _platform_angular_velocity;
+	}
 }
 
 void BargeController::getPlatformState(const gz::sim::EntityComponentManager &ecm)
