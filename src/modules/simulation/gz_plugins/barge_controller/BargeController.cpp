@@ -32,13 +32,13 @@
  ****************************************************************************/
 
 /****************************************************************************
- * 
+ *
  * This customized controller is designed to control a moving platform with more
- * degrees of freedom than the standard MovingPlatformController. Need a PD 
+ * degrees of freedom than the standard MovingPlatformController. Need a PD
  * position controller for all 6 axes. Noise is not necessary but can be added.
- * Must also be some way of publishing a given trajectory to the platform through 
+ * Must also be some way of publishing a given trajectory to the platform through
  * ROS2.
- * 
+ *
  *****************************************************************************/
 
 #include "BargeController.hpp"
@@ -92,7 +92,7 @@
 			gzerr << "Error subscribing to topic [" << topic << "]" << std::endl;
 		}
 	}
-	
+
     // Get gravity, model mass, platform height.
     {
         const auto gravity = _world.Gravity(ecm);
@@ -116,14 +116,14 @@
     }
 }
 
-void BargeController::PreUpdate(const gz::sim::UpdateInfo &_info, 
-	gz::sim::EntityComponentManager &ecm) 
+void BargeController::PreUpdate(const gz::sim::UpdateInfo &_info,
+	gz::sim::EntityComponentManager &ecm)
 {
 	getPlatformState(ecm);
 
 	// Gets change in dt in last simulation step (in nanoseconds?)
 	// const double dt_sec = std::chrono::duration<double>(_info.dt).count();
-	
+
 	// Wait for vehicle to spawn
 	const bool vehicle_has_spawned = 0 != _world.ModelByName(ecm, _vehicle_model_name);
 	const bool keep_stationary = _wait_for_vehicle_spawned && !vehicle_has_spawned;
@@ -138,6 +138,10 @@ void BargeController::updateWrenchCommand(const gz::math::Vector3d &velocity_set
 					const bool keep_stationary)
 {
 
+	_position_sp.Set(0.0, 0.0, 3.0);
+	gz::math::Quaterniond fixed_orientation_sp{1., 0., 0., 0.};
+
+
 	// Account for gravity on platform
 	const gz::math::Vector3d normal_force(0., 0., -_gravity * _platform_mass);
 	_force = normal_force;
@@ -150,13 +154,13 @@ void BargeController::updateWrenchCommand(const gz::math::Vector3d &velocity_set
 
 		const gz::math::Vector3d platform_position_setpoint = _position_sp;
 		const gz::math::Vector3d platform_velocity_setpoint = gz::math::Vector3d::Zero;
-		// Can add feedforward later
+		// Can add feedforward later - lol
 
 		const gz::math::Vector3d platform_pos_error = (_platform_position - platform_position_setpoint);
 		const gz::math::Vector3d platform_vel_error = (_platform_velocity - platform_velocity_setpoint);
 
 		// Note * is elementwise multiplication
-		const gz::math::Vector3d feedback_force = -pos_gains * platform_pos_error - vel_gains * platform_vel_error;
+		const gz::math::Vector3d feedback_force = - pos_gains * platform_pos_error - vel_gains * platform_vel_error;
 		const float max_accel = 7.0;
 
 		const gz::math::Vector2d _force_xy = gz::math::Vector2d(feedback_force.X(), feedback_force.Y());
@@ -179,17 +183,17 @@ void BargeController::updateWrenchCommand(const gz::math::Vector3d &velocity_set
 	//    https://www.diva-portal.org/smash/get/diva2:1010947/FULLTEXT01.pdf
 
 	{
-		const gz::math::Quaterniond attitude_err = _platform_orientation * orientation_setpoint.Inverse();
+		const gz::math::Quaterniond attitude_err = _platform_orientation * fixed_orientation_sp.Inverse();
 
 		// With the factors of 1. having units of 1 / (m rad) and s / (m rad), respectively
 		const gz::math::Vector3d attitude_p_gain = 10 * _platform_diag_moments; // [N m / rad]
-		const gz::math::Vector3d attitude_d_gain = 100 * _platform_diag_moments; // [N m / (rad/s)]
+		const gz::math::Vector3d attitude_d_gain = 5 * _platform_diag_moments; // [N m / (rad/s)]
 
 		const double sgn = attitude_err.W() > 0. ? 1. : -1.;
 		gz::math::Vector3d attitude_err_imag = sgn * gz::math::Vector3d(attitude_err.X(), attitude_err.Y(), attitude_err.Z());
 
 		// Factor of 2 to convert quaternion error to rad
-		_torque += -(2. * attitude_p_gain * attitude_err_imag + attitude_d_gain * _platform_angular_velocity);
+		_torque = -(2. * attitude_p_gain * attitude_err_imag + attitude_d_gain * _platform_angular_velocity);
 	}
 }
 
@@ -290,17 +294,17 @@ void BargeController::getVehicleModelName()
 	_wait_for_vehicle_spawned = true;
 }
 
-void BargeController::bargeCallback(const gz::msgs::Odometry &_msg) 
+void BargeController::bargeCallback(const gz::msgs::Odometry &_msg)
 {
 	// Extract vehicle position and orientation
     // Assign position
-    const auto pos_msg = _msg.pose().position();
-	_position_sp.Set(pos_msg.x(), pos_msg.y(), pos_msg.z());
-	//_position_sp.Set(3.0, 3.0, 3.0);
+    //const auto pos_msg = _msg.pose().position();
+	//_position_sp.Set(pos_msg.x(), pos_msg.y(), pos_msg.z());
+	_position_sp.Set(3.0, 3.0, 3.0);
 
     // Assign orientation
     //const auto &ori_msg = _msg.pose().orientation();
 	//_orientation_sp.Set(ori_msg.w(), ori_msg.x(), ori_msg.y(), ori_msg.z());
-	_orientation_sp.Set(0.0, 0.0, 0.0, 0.0);
+	//_orientation_sp.Set(1.0, 0.0, 0.0, 0.0);
 
 }
